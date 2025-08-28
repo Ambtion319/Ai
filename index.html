@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شات ذكاء اصطناعي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            direction: rtl; /* Set text direction to right-to-left for Arabic */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Main Container -->
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-blue-600 dark:bg-blue-800 text-white p-4 text-center rounded-t-2xl shadow-md">
+            <h1 class="text-xl md:text-2xl font-bold">شات ذكاء اصطناعي</h1>
+        </header>
+
+        <!-- Chat Messages Container -->
+        <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4 flex flex-col-reverse">
+            <div class="space-y-4">
+                <div class="flex items-start gap-3 justify-end">
+                    <div class="bg-blue-500 text-white p-3 rounded-xl rounded-bl-none shadow-sm max-w-[80%]">
+                        <p>مرحباً! كيف يمكنني مساعدتك اليوم؟</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Form -->
+        <form id="chat-form" class="p-4 bg-gray-200 dark:bg-gray-700 rounded-b-2xl flex items-center gap-2 shadow-inner">
+            <input type="text" id="user-input" class="flex-1 bg-white dark:bg-gray-600 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm md:text-base" placeholder="اكتب رسالتك هنا..." autocomplete="off">
+            <button type="submit" id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const chatMessages = document.getElementById('chat-messages');
+
+        // Function to create and add a message bubble
+        function addMessage(text, isUser = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start gap-3 ${isUser ? 'justify-end' : ''}`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = `p-3 rounded-xl shadow-sm max-w-[80%] ${isUser ? 'bg-blue-500 text-white rounded-bl-none' : 'bg-gray-300 dark:bg-gray-700 rounded-br-none'}`;
+            bubbleDiv.innerHTML = `<p>${text}</p>`;
+
+            messageDiv.appendChild(bubbleDiv);
+            chatMessages.prepend(messageDiv);
+        }
+
+        // Handle form submission
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Display user message immediately
+            addMessage(message, true);
+            userInput.value = '';
+
+            // Add a "typing" message for the AI
+            const typingMessageId = 'typing-' + Date.now();
+            addMessage('جاري الكتابة...', false);
+            chatMessages.firstElementChild.id = typingMessageId;
+
+            try {
+                // Send the message to the Python backend
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                // Remove "typing" message
+                const typingMessage = document.getElementById(typingMessageId);
+                if (typingMessage) {
+                    typingMessage.remove();
+                }
+
+                if (result.success) {
+                    addMessage(result.message, false);
+                } else {
+                    addMessage(`حدث خطأ: ${result.error}`, false);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                const typingMessage = document.getElementById(typingMessageId);
+                if (typingMessage) {
+                    typingMessage.remove();
+                }
+                addMessage('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.', false);
+            }
+        });
+
+    </script>
+</body>
+</html>
